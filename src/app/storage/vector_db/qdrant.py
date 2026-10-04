@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct, VectorParams, Distance
 from langchain_huggingface import HuggingFaceEndpointEmbeddings
-from .AbstractVectorDB import AbstractVectorDB
+from .base import AbstractVectorDB
 
 class QdrantService(AbstractVectorDB):
     def __init__(self, API_KEY: str, url: str, local: bool = False):

@@ -1,6 +1,6 @@
-from RAG import LLMService, SimpleRetrievalStrategy
-from services.vector_db.QdrantService import QdrantService
-from services.BigQueryService import BigQueryService
+from app.rag import LLMService, SimpleRetrievalStrategy
+from app.storage.vector_db.qdrant import QdrantService
+from app.storage.bigquery import BigQueryService
 import streamlit as st
 from streamlit_echarts import st_echarts
 import os

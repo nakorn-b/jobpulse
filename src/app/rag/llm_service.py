@@ -2,7 +2,7 @@ import os
 from langchain_core.prompts import PromptTemplate
 from huggingface_hub import InferenceClient
 from dotenv import load_dotenv
-from .RetrievalStrategy import RetrievalStrategy
+from .retrieval_strategy import RetrievalStrategy
 
 load_dotenv()
 

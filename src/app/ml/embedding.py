@@ -1,5 +1,5 @@
 from typing import Dict, Optional, List
-from .vector_db.AbstractVectorDB import AbstractVectorDB
+from app.storage.vector_db.base import AbstractVectorDB
 
 class EmbeddingService:
     """

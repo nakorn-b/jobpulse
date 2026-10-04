@@ -34,7 +34,7 @@ It's recommended to run the Streamlit app outside Docker for faster reloads in d
 # Install dependencies
 uv sync # or pip install -r requirements.txt
 # Run Streamlit
-streamlit run demo.py
+streamlit run src/app/ui/streamlit_app.py
 ```
 
 ## Author

@@ -1,5 +1,5 @@
 import sqlite3
-from models import Job
+from app.models import Job
 from datetime import datetime
 from typing import List
 import os

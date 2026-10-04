@@ -5,8 +5,8 @@ import json
 from typing import List, Dict, Any
 from langchain_core.documents import Document
 
-from models import Job
-from .AbstractVectorDB import AbstractVectorDB
+from app.models import Job
+from .base import AbstractVectorDB
 
 class ChromaService(AbstractVectorDB):
     def __init__(self,  persist_directory: str = "./data/category-db/chroma_db"):

@@ -1,19 +1,16 @@
 import os
-import sys
 import pendulum
 import json
 from datetime import datetime, timedelta
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if project_root not in sys.path:
-    sys.path.append(project_root)
 
 from airflow.decorators import dag, task
-from scraper.remoteOK import RemoteOKScraper
-from adapters.remoteOK_adapter import RemoteOKAdapter
-from database import Database
-from services.embedding_service import EmbeddingService
-from services.vector_db import ChromaService
+from app.ingestion.scrapers.remoteok import RemoteOKScraper
+from app.ingestion.adapters.remoteok_adapter import RemoteOKAdapter
+from app.storage.sqlite import Database
+from app.ml.embedding import EmbeddingService
+from app.storage.vector_db import ChromaService
 
 default_args = {
     'owner': 'jobpulse',

@@ -1,4 +1,4 @@
-from .RetrievalStrategy import RetrievalStrategy
+from .retrieval_strategy import RetrievalStrategy
 from huggingface_hub import InferenceClient
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser

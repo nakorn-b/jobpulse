@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routers import query
+from app.api.routers import query
 
 app = FastAPI()
 

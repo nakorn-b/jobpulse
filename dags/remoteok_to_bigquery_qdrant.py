@@ -1,10 +1,4 @@
 import os
-import sys
-
-# Add project root to sys.path
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if project_root not in sys.path:
-    sys.path.append(project_root)
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
@@ -15,11 +9,11 @@ from airflow.sdk import dag, task
 from langchain_huggingface import HuggingFaceEndpointEmbeddings
 import pendulum
 import hashlib
-from services.vector_db.QdrantService import QdrantService
-from services.BigQueryService import BigQueryService
-from adapters.remoteOK_adapter import RemoteOKAdapter
-from database import Database
-from scraper.remoteOK import RemoteOKScraper
+from app.storage.vector_db.qdrant import QdrantService
+from app.storage.bigquery import BigQueryService
+from app.ingestion.adapters.remoteok_adapter import RemoteOKAdapter
+from app.storage.sqlite import Database
+from app.ingestion.scrapers.remoteok import RemoteOKScraper
 import json
 from datetime import date
 import logging

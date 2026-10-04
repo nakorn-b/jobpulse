@@ -1,4 +1,4 @@
-from .RetrievalStrategy import RetrievalStrategy
+from .retrieval_strategy import RetrievalStrategy
 
 class SimpleRetrievalStrategy(RetrievalStrategy):
     def retrieve(self, query: str, vector_db, k: int = 5):

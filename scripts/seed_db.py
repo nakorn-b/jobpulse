@@ -1,12 +1,8 @@
 import json
 import os
-import sys
 from datetime import datetime
 from dags.include.embedding_service import EmbeddingService
 
-
-# Add project root to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from dags.include.database import Database
 from dags.include.vector_db import VectorDatabase
