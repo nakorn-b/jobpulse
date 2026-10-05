@@ -2,7 +2,7 @@ import os
 from langchain_core.prompts import PromptTemplate
 from huggingface_hub import InferenceClient
 from dotenv import load_dotenv
-from .RetrievalStrategy import RetrievalStrategy
+from .retrieval_strategy import RetrievalStrategy
 
 load_dotenv()
 
@@ -65,16 +65,7 @@ Answer the question based on the above context: {question}
     def query(self, question: str):
         try:
             docs = self.strategy.retrieve(question, self.vector_db)
-            # Log docs
-            # log_path = os.path.join(os.path.dirname(__file__), '..', 'test', 'logs', 'docs.txt')
-            # with open(log_path, 'w', encoding='utf-8') as f:
-            #     for doc in docs:
-            #         f.write(f"{doc}\n")
             context = format_docs(docs=docs)
-            # Log context
-            # log_path = os.path.join(os.path.dirname(__file__), '..', 'test', 'logs', 'context.txt')
-            # with open(log_path, 'w', encoding='utf-8') as f:
-            #     f.write(context)
             prompt = self.prompt.format(context=context, question=question)
 
             completion = self.client.chat.completions.create(
@@ -87,11 +78,6 @@ Answer the question based on the above context: {question}
                 ],
                 max_tokens=2048, # Increased to allow for longer descriptions
             )
-
-            # Log response
-            # log_path = os.path.join(os.path.dirname(__file__), '..', 'test', 'logs', 'rag.txt')
-            # with open(log_path, 'w', encoding='utf-8') as f:
-            #     f.write(completion.choices[0].message.content)
 
             return completion.choices[0].message.content
         except Exception as e:

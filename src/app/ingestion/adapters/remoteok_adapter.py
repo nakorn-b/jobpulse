@@ -1,7 +1,7 @@
-from models import Job
+from app.models import Job
 from datetime import datetime
-from services.JobClassificationService import classify_category
-from utils import clean_text
+from app.ml.classification import classify_category
+from app.utils import clean_text
 
 class RemoteOKAdapter:
     @staticmethod

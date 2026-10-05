@@ -1,6 +1,6 @@
-from RAG import LLMService, SimpleRetrievalStrategy
-from services.vector_db.QdrantService import QdrantService
-from services.BigQueryService import BigQueryService
+from app.rag import LLMService, SimpleRetrievalStrategy
+from app.storage.vector_db.qdrant import QdrantService
+from app.storage.postgres import PostgresDatabase
 import streamlit as st
 from streamlit_echarts import st_echarts
 import os
@@ -29,56 +29,26 @@ def init_services():
     strategy = SimpleRetrievalStrategy()
     llm = LLMService(qdrant, strategy)
     
-    GCP_PROJECT = "jobpulse-492611"
-    
-    GCP_SA_KEYS = ["type", "project_id", "private_key_id", "private_key",
-                    "client_email", "client_id", "auth_uri", "token_uri",
-                    "auth_provider_x509_cert_url", "client_x509_cert_url"]
-    
-    class BQHook:
-        def get_client(self):
-            from google.cloud import bigquery
-            
-            # 1. Try nested [gcp_service_account] section in Streamlit Secrets
-            if "gcp_service_account" in st.secrets:
-                info = dict(st.secrets["gcp_service_account"])
-                return bigquery.Client.from_service_account_info(info, project=GCP_PROJECT)
-            
-            # 2. Try flat top-level GCP keys in Streamlit Secrets
-            if "type" in st.secrets and "private_key" in st.secrets:
-                info = {k: st.secrets[k] for k in GCP_SA_KEYS if k in st.secrets}
-                if "universe_domain" in st.secrets:
-                    info["universe_domain"] = st.secrets["universe_domain"]
-                return bigquery.Client.from_service_account_info(info, project=GCP_PROJECT)
-            
-            # 3. Try local file (For local development)
-            if os.path.exists("gcp-key.json"):
-                return bigquery.Client.from_service_account_json("gcp-key.json", project=GCP_PROJECT)
-            
-            # 4. No credentials found
-            raise RuntimeError(
-                "No GCP credentials found. "
-                "Add GCP service account keys to Streamlit Secrets, "
-                "or place a gcp-key.json file in the project root for local dev."
-            )
-    
-    bq_service = BigQueryService(BQHook())
-    return qdrant, llm, bq_service
+    return qdrant, llm
 
 try:
-    qdrant_service, llm_service, bq_service = init_services()
+    qdrant_service, llm_service = init_services()
 except Exception as e:
     st.error(f"Failed to initialize services: {e}")
-    st.info("Check your Qdrant URL/API Key and GCP service account in Streamlit Secrets.")
+    st.info("Check your Qdrant URL/API Key in Streamlit Secrets.")
     st.stop()
 
 # --- Cached Data Fetching ---
 @st.cache_data(ttl=3600)
 def fetch_analytics():
     try:
-        return bq_service.get_category_stats()
+        db = PostgresDatabase()
+        try:
+            return db.get_category_stats()
+        finally:
+            db.close()
     except Exception as e:
-        st.warning(f"Could not fetch analytics from BigQuery: {e}")
+        st.warning(f"Could not fetch analytics from Postgres: {e}")
         return []
 
 @st.cache_data(ttl=600)

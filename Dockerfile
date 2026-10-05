@@ -1,15 +1,22 @@
-FROM apache/airflow:3.1.6
+FROM python:3.12-slim
+COPY --from=ghcr.io/astral-sh/uv:0.10.8 /uv /uvx /bin/
 
-USER root
-# Copy uv from the official image
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+WORKDIR /app
 
-# Ensure we switch back to the airflow user for installation
-USER airflow
+# Compile .pyc at build time; copy (not hardlink) from the uv cache mount
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
 
-# Copy dependency files
-COPY requirements.txt /requirements.txt
-COPY pyproject.toml uv.lock ./
+# Install dependencies first so this layer is cached until pyproject/uv.lock change
+COPY pyproject.toml uv.lock README.md ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-install-project --no-dev
 
-# Install dependencies using uv into the airflow environment
-RUN uv pip install --no-cache-dir -r /requirements.txt
+# Then install the project itself
+COPY src ./src
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev
+
+EXPOSE 8000
+
+CMD ["uv", "run", "--no-sync", "uvicorn", "app.api.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,12 +1,12 @@
 import sqlite3
-from models import Job
+from app.models import Job
 from datetime import datetime
 from typing import List
 import os
 import hashlib
 
 class Database:
-    def __init__(self, db_path='/opt/airflow/data/jobpulse.db'):
+    def __init__(self, db_path='data/jobpulse.db'):
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row

@@ -1,0 +1,12 @@
+.venv
+.git
+__pycache__
+*.pyc
+.env
+gcp-key.json
+data
+archive
+logs
+test
+*.ipynb
+*.db

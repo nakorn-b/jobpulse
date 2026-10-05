@@ -1,11 +1,11 @@
-from .RetrievalStrategy import RetrievalStrategy
+from .retrieval_strategy import RetrievalStrategy
 from huggingface_hub import InferenceClient
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableLambda
 import os
 from langchain_core.load import dumps, loads
-
+import ast
 
 class RAGFusionStrategy(RetrievalStrategy):
     def __init__(self):
@@ -33,7 +33,7 @@ class RAGFusionStrategy(RetrievalStrategy):
         return [loads(doc) for doc, score in reranked_results] # convert back to LangChain Document objects
             
 
-    def retrieve(self, query: str, retriever, k: int = 5):
+    def retrieve(self, query: str, vector_db, k: int = 5):
 
         # generated_queries = self.rag_fusion_prompt | self.client | StrOutputParser() | (lambda x: x.split("\n"))
         # retrieval_chain = generated_queries | retriever.map() | self.reciprocal_rank_fusion()
@@ -48,12 +48,21 @@ class RAGFusionStrategy(RetrievalStrategy):
             )
             return response.choices[0].message.content
 
+        def parse_queries(text):
+            try:
+                parsed = ast.literal_eval(text.strip())
+                if isinstance(parsed, list):
+                    return [str(q).strip() for q in parsed if str(q).strip()]
+            except (ValueError, SyntaxError):
+                pass
+            return [q.strip() for q in text.split("\n") if q.strip()]
+            
         query_chain = (
             self.rag_fusion_prompt 
             | RunnableLambda(gen_queries) # Call LLM to create queries
             | StrOutputParser() 
-            | (lambda x: [q.strip() for q in x.split("\n") if q.strip()])
-        )
+            | RunnableLambda(parse_queries)
+            )
         
         queries = query_chain.invoke({"question": query})
         
@@ -61,7 +70,7 @@ class RAGFusionStrategy(RetrievalStrategy):
             queries = [query]
         
         print("Fusion query:", queries)
-        all_docs = retriever.map().invoke(queries)
+        all_docs = [vector_db.search(query) for query in queries]
         
         fused_docs = self.reciprocal_rank_fusion(all_docs)
         return fused_docs[:k]
