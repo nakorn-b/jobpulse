@@ -1,0 +1,30 @@
+# Prefect deployment config for JobPulse.
+#
+# One-time setup:
+#   prefect work-pool create jobpulse-pool --type process
+# Deploy (from the repo root):
+#   prefect deploy --all
+# Run a worker that picks up scheduled runs:
+#   uv run prefect worker start --pool jobpulse-pool
+
+name: jobpulse
+prefect-version: 3.7.2
+
+# Code runs from this checkout; no image build or remote push.
+build: null
+push: null
+
+pull:
+  - prefect.deployments.steps.set_working_directory:
+      directory: /Applications/jobpulse
+
+deployments:
+  - name: daily-job-scraper
+    description: Scrape RemoteOK, store new jobs in Postgres, and embed them into Qdrant
+    entrypoint: src/app/flows/daily_job_scraper.py:daily_job_scraper
+    work_pool:
+      name: jobpulse-pool
+    schedules:
+      - cron: "0 2 * * *"
+        timezone: UTC
+        active: true

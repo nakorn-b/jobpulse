@@ -7,23 +7,20 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct, VectorParams, Distance
 from langchain_huggingface import HuggingFaceEndpointEmbeddings
 from .base import AbstractVectorDB
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class QdrantService(AbstractVectorDB):
-    def __init__(self, API_KEY: str, url: str, local: bool = False):
+    def __init__(self, url: str = os.getenv("QDRANT_LOCAL_HOST_URL")):
         self.logger = logging.getLogger(__name__)
         self.embedding_model = HuggingFaceEndpointEmbeddings(
             model='BAAI/bge-small-en-v1.5',
             huggingfacehub_api_token=os.getenv('HF_TOKEN'))
         
-        if local:
-            self.client = QdrantClient(url=url)
-            self.logger.info("Using QDRANT local collection")
-        else:            
-            self.client = QdrantClient(
-                url=url, 
-                api_key=API_KEY,
-            )
-            self.logger.info("Connected to QDRANT cloud successfully")
+        self.client = QdrantClient(url=url, timeout=60)
+        self.logger.info("Using QDRANT local collection")    
+        self.logger.info("Connected to QDRANT cloud successfully")
             
         if not self.client.collection_exists('job_collection'):
             self.client.create_collection(
