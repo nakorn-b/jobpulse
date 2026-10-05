@@ -62,24 +62,34 @@ Answer the question based on the above context: {question}
         """Setter function for retrievel strategy"""
         self.strategy = strategy
 
+    def chat(self, question: str) -> dict:
+        """Answer the question and return the retrieved jobs it was based on.
+
+        Returns {"response": str, "job_list": list[dict]}. Raises on failure.
+        """
+        docs = self.strategy.retrieve(question, self.vector_db)
+        context = format_docs(docs=docs)
+        prompt = self.prompt.format(context=context, question=question)
+
+        completion = self.client.chat.completions.create(
+            model="meta-llama/Llama-3.1-8B-Instruct",
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            max_tokens=2048, # Increased to allow for longer descriptions
+        )
+
+        return {
+            "response": completion.choices[0].message.content,
+            "job_list": docs,
+        }
+
     def query(self, question: str):
         try:
-            docs = self.strategy.retrieve(question, self.vector_db)
-            context = format_docs(docs=docs)
-            prompt = self.prompt.format(context=context, question=question)
-
-            completion = self.client.chat.completions.create(
-                model="meta-llama/Llama-3.1-8B-Instruct",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                max_tokens=2048, # Increased to allow for longer descriptions
-            )
-
-            return completion.choices[0].message.content
+            return self.chat(question)["response"]
         except Exception as e:
             print(f"Query error: {e}")
             return f"Error processing query: {str(e)}"
