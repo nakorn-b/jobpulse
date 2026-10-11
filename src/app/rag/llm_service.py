@@ -24,7 +24,7 @@ def format_docs(docs):
 
 class LLMService:
     def __init__(self, vector_db, strategy: RetrievalStrategy):
-        self.model_id = "meta-llama/Llama-3.1-8B-Instruct"
+        self.model_id = "Qwen/Qwen3-0.6B"
         self.vector_db = vector_db
         self.client = InferenceClient(
             api_key=os.environ["HF_TOKEN"],
