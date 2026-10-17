@@ -1,11 +1,9 @@
 from functools import lru_cache
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 
-from app.rag import LLMService
-from app.rag.rag_fusion import RAGFusionStrategy
+from app.rag import LLMService, SimpleRetrievalStrategy
 from app.storage.vector_db import QdrantService
 
 router = APIRouter(
@@ -22,25 +20,25 @@ class JobItem(BaseModel):
     # Qdrant payloads may carry extra fields; drop anything not listed here
     model_config = ConfigDict(extra="ignore")
 
-    id: Optional[str] = None
-    title: Optional[str] = None
-    company: Optional[str] = None
-    location: Optional[str] = None
-    category: Optional[str] = None
-    url: Optional[str] = None
-    posted_date: Optional[str] = None
-    description: Optional[str] = None
+    id: str | None = None
+    title: str | None = None
+    company: str | None = None
+    location: str | None = None
+    category: str | None = None
+    url: str | None = None
+    posted_date: str | None = None
+    description: str | None = None
 
 
 class ChatResponse(BaseModel):
     response: str
-    job_list: List[JobItem]
+    job_list: list[JobItem]
 
 
 @lru_cache
 def get_llm_service() -> LLMService:
     """Build the Qdrant client and LLM clients once and reuse them across requests."""
-    return LLMService(QdrantService(), RAGFusionStrategy())
+    return LLMService(QdrantService(), SimpleRetrievalStrategy())
 
 
 @router.post("", response_model=ChatResponse)

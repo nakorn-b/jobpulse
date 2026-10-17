@@ -1,34 +1,38 @@
-import os
-import logging
-import uuid
 import json
-from typing import List, Dict, Any
-from qdrant_client import QdrantClient
-from qdrant_client.models import PointStruct, VectorParams, Distance
-from langchain_huggingface import HuggingFaceEndpointEmbeddings
-from .base import AbstractVectorDB
+import logging
+import os
+import uuid
+from typing import Any
+
 from dotenv import load_dotenv
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, PointStruct, VectorParams
+
+from .base import AbstractVectorDB
+from .gemma_embedding import GemmaEmbedding
 
 load_dotenv()
 
 class QdrantService(AbstractVectorDB):
-    def __init__(self, url: str = os.getenv("QDRANT_LOCAL_HOST_URL")):
+    def __init__(
+        self,
+        url: str = os.getenv("QDRANT_LOCAL_HOST_URL"),
+        api_key: str | None = None,
+    ):
         self.logger = logging.getLogger(__name__)
-        self.embedding_model = HuggingFaceEndpointEmbeddings(
-            model='BAAI/bge-small-en-v1.5',
-            huggingfacehub_api_token=os.getenv('HF_TOKEN'))
-        
-        self.client = QdrantClient(url=url, timeout=60)
+        self.embedding_model = GemmaEmbedding()
+
+        self.client = QdrantClient(url=url, api_key=api_key, timeout=60)
         self.logger.info("Using QDRANT local collection")    
         self.logger.info("Connected to QDRANT cloud successfully")
             
         if not self.client.collection_exists('job_collection'):
             self.client.create_collection(
                 collection_name='job_collection',
-                vectors_config=VectorParams(size=384, distance=Distance.COSINE) 
+                vectors_config=VectorParams(size=self.embedding_model.dimension, distance=Distance.COSINE) 
             )
 
-    def create_embeddings(self, jobs: List[Dict[str, Any]]) -> List[List[float]]:
+    def create_embeddings(self, jobs: list[dict[str, Any]]) -> list[list[float]]:
         jobs_to_embed = [f"""
                     {job.get("title", "")}
                     {job.get("company", "")}
@@ -43,7 +47,7 @@ class QdrantService(AbstractVectorDB):
         self.logger.info(f"Generated {len(embedding_list)} embeddings")
         return embedding_list
 
-    def add_jobs(self, jobs: List[Dict[str, Any]]) -> List[str]:
+    def add_jobs(self, jobs: list[dict[str, Any]]) -> list[str]:
         """Process, embed, and add a batch of jobs to Qdrant. Returns list of IDs."""
         if not jobs:
             return []
@@ -84,7 +88,7 @@ class QdrantService(AbstractVectorDB):
             self.logger.error(f"Error in add_jobs: {e}")
             return []
 
-    def search(self, query: str, n_results: int = 5) -> List[Dict[str, Any]]:
+    def search(self, query: str, n_results: int = 5) -> list[dict[str, Any]]:
         try:
             query_vector = self.embedding_model.embed_query(query)
             results = self.client.query_points(
@@ -98,7 +102,7 @@ class QdrantService(AbstractVectorDB):
             self.logger.error(f"Search error: {e}")
             return []
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         try:
             collection_info = self.client.get_collection('job_collection')
             return {

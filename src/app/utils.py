@@ -1,6 +1,7 @@
 import re
-import unicodedata
+
 from bs4 import BeautifulSoup
+
 
 def clean_text(text):
     if not text:

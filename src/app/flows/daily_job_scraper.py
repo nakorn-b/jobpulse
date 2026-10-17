@@ -1,12 +1,11 @@
-import os
 import hashlib
-from typing import Any, Dict, List
+from typing import Any
 
 from dotenv import load_dotenv
-from prefect import flow, task, get_run_logger
+from prefect import flow, get_run_logger, task
 
-from app.ingestion.scrapers.remoteok import RemoteOKScraper
 from app.ingestion.adapters.remoteok_adapter import RemoteOKAdapter
+from app.ingestion.scrapers.remoteok import RemoteOKScraper
 from app.storage.postgres import PostgresDatabase
 from app.storage.vector_db.qdrant import QdrantService
 
@@ -27,7 +26,7 @@ def ensure_table_exists():
 
 
 @task(retries=RETRIES, retry_delay_seconds=RETRY_DELAY_SECONDS)
-def scrape_remoteOK() -> List[Dict[str, Any]]:
+def scrape_remoteOK() -> list[dict[str, Any]]:
     """
     Fetch jobs from remoteOK and return them
     """
@@ -44,7 +43,7 @@ def scrape_remoteOK() -> List[Dict[str, Any]]:
 
 
 @task(retries=RETRIES, retry_delay_seconds=RETRY_DELAY_SECONDS)
-def transform_jobs(raw_jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def transform_jobs(raw_jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Transform raw jobs into dicts with a stable `id`
     """
@@ -75,7 +74,7 @@ def transform_jobs(raw_jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 @task(retries=RETRIES, retry_delay_seconds=RETRY_DELAY_SECONDS)
-def load_new_jobs(jobs: List[Dict[str, Any]]) -> List[str]:
+def load_new_jobs(jobs: list[dict[str, Any]]) -> list[str]:
     """
     Insert only jobs not already in Postgres (temp table LEFT JOIN jobs)
     """
@@ -91,7 +90,7 @@ def load_new_jobs(jobs: List[Dict[str, Any]]) -> List[str]:
 
 
 @task(retries=RETRIES, retry_delay_seconds=RETRY_DELAY_SECONDS)
-def fetch_unembedded_jobs() -> List[Dict[str, Any]]:
+def fetch_unembedded_jobs() -> list[dict[str, Any]]:
     """
     New jobs plus any earlier jobs whose embedding failed
     """
@@ -103,13 +102,13 @@ def fetch_unembedded_jobs() -> List[Dict[str, Any]]:
 
 
 @task(retries=RETRIES, retry_delay_seconds=RETRY_DELAY_SECONDS)
-def embed_jobs(jobs: List[Dict[str, Any]]) -> List[str]:
+def embed_jobs(jobs: list[dict[str, Any]]) -> list[str]:
     logger = get_run_logger()
     if not jobs:
         return []
 
     # Connects to QDRANT_LOCAL_HOST_URL (QdrantService default)
-    qdrant_service = QdrantService(API_KEY=os.getenv('QDRANT_API_KEY'))
+    qdrant_service = QdrantService()
 
     # Process in smaller batches of 20 to avoid timeouts
     all_success_ids = []
@@ -125,7 +124,7 @@ def embed_jobs(jobs: List[Dict[str, Any]]) -> List[str]:
 
 
 @task(retries=RETRIES, retry_delay_seconds=RETRY_DELAY_SECONDS)
-def update_job_status(success_ids: List[str]) -> int:
+def update_job_status(success_ids: list[str]) -> int:
     logger = get_run_logger()
     if not success_ids:
         logger.info("No jobs to update")
@@ -142,7 +141,7 @@ def update_job_status(success_ids: List[str]) -> int:
 
 
 @task
-def summary(new_ids: List[str], embedded_ids: List[str]) -> str:
+def summary(new_ids: list[str], embedded_ids: list[str]) -> str:
     db = PostgresDatabase()
     try:
         stats = db.get_stats()

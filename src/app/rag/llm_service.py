@@ -1,12 +1,22 @@
 import os
-from langchain_core.prompts import PromptTemplate
-from huggingface_hub import InferenceClient
+
+import httpx
 from dotenv import load_dotenv
+from langchain_core.prompts import PromptTemplate
+
 from .retrieval_strategy import RetrievalStrategy
 
 load_dotenv()
 
 MAX_CHARS_PER_DOC = 5000
+# Give up on the LLM after this long so /chat returns an error instead of hanging
+LLM_TIMEOUT_SECONDS = 120
+LLM_CONTEXT_TOKENS = 16384
+
+
+class Model:
+    def __init__(self) -> None:
+        pass
 
 def format_docs(docs):
     formatted = []
@@ -24,11 +34,10 @@ def format_docs(docs):
 
 class LLMService:
     def __init__(self, vector_db, strategy: RetrievalStrategy):
-        self.model_id = "Qwen/Qwen3-0.6B"
+        self.ollama_url = os.getenv("OLLAMA_HOST_URL", "http://localhost:11434").rstrip("/")
+        self.model_id = os.getenv("OLLAMA_CHAT_MODEL", "qwen3.5:4b")
         self.vector_db = vector_db
-        self.client = InferenceClient(
-            api_key=os.environ["HF_TOKEN"],
-        )
+        # self.client = # Future work
         self.strategy = strategy        
         self.prompt = PromptTemplate.from_template("""You are a friendly and helpful job search assistant.
 
@@ -62,118 +71,44 @@ Answer the question based on the above context: {question}
         """Setter function for retrievel strategy"""
         self.strategy = strategy
 
+    def retrieve(self, question: str, k: int = 5) -> list[dict]:
+        """Return the job chunks most relevant to the question. Raises on failure."""
+        return self.strategy.retrieve(question, self.vector_db, k=k)
+
+    def generate(self, question: str, docs: list[dict]) -> str:
+        """Answer the question using only the given docs as context. Raises on failure."""
+        context = format_docs(docs=docs)
+        prompt = self.prompt.format(context=context, question=question)
+
+        # Non-streaming: Ollama sends nothing until the answer is complete, so the read timeout
+        # caps total generation time
+        response = httpx.post(
+            url=f"{self.ollama_url}/api/chat",
+            json={
+                "model": self.model_id,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": False,
+                # Qwen3.5 thinks before answering by default; skip it for faster replies
+                "think": False,
+                # Ollama's default context is too small for 5 job descriptions and silently
+                # drops the start of the prompt (the instructions) when it overflows
+                "options": {"num_ctx": LLM_CONTEXT_TOKENS},
+            },
+            timeout=LLM_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        return response.json()['message']['content']
+
     def chat(self, question: str) -> dict:
         """Answer the question and return the retrieved jobs it was based on.
 
         Returns {"response": str, "job_list": list[dict]}. Raises on failure.
         """
-        docs = self.strategy.retrieve(question, self.vector_db)
-        context = format_docs(docs=docs)
-        prompt = self.prompt.format(context=context, question=question)
-
-        completion = self.client.chat.completions.create(
-            model="meta-llama/Llama-3.1-8B-Instruct",
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            max_tokens=2048, # Increased to allow for longer descriptions
-        )
-
+        docs = self.retrieve(question)
         return {
-            "response": completion.choices[0].message.content,
+            "response": self.generate(question, docs),
             "job_list": docs,
         }
 
-    def query(self, question: str):
-        try:
-            return self.chat(question)["response"]
-        except Exception as e:
-            print(f"Query error: {e}")
-            return f"Error processing query: {str(e)}"
-        
     def get_data_count(self):
         return self.vector_db.get_data_count()
-    
-    def debug_retriever(self, question: str):
-        """Debug method to check what the retriever returns"""
-        try:
-            docs = self.strategy.retrieve(question, self.vector_db)
-            print(f"Retriever returned {len(docs)} documents")
-            for i, doc in enumerate(docs):
-                print(f"  Doc {i}: {doc.get('description', '')[:100]}...")
-            return docs
-        except Exception as e:
-            print(f"Retriever debug error: {e}")
-            return []
-    
-    def debug_chain(self, question: str):
-        """Debug each step of the RAG chain separately"""
-        print("=" * 50)
-        print("STEP 1: Testing Retriever")
-        print("=" * 50)
-        try:
-            retriever = self.vector_db.as_retriever(k=5)
-            docs = retriever.invoke(question)
-            print(f"✓ Retriever returned {len(docs)} documents")
-        except Exception as e:
-            print(f"✗ Retriever failed: {e}")
-            return
-        
-        print("\n" + "=" * 50)
-        print("STEP 2: Testing format_docs")
-        print("=" * 50)
-        try:
-            context = format_docs(docs)
-            print(f"✓ Context formatted ({len(context)} chars):")
-            print(context[:300] + "..." if len(context) > 300 else context)
-        except Exception as e:
-            print(f"✗ format_docs failed: {e}")
-            return
-        
-        print("\n" + "=" * 50)
-        print("STEP 3: Testing Prompt")
-        print("=" * 50)
-        try:
-            prompt_value = self.prompt.invoke({"context": context, "question": question})
-            print(f"✓ Prompt created:")
-            print(str(prompt_value)[:500] + "..." if len(str(prompt_value)) > 500 else prompt_value)
-        except Exception as e:
-            print(f"✗ Prompt failed: {e}")
-            return
-        
-        print("\n" + "=" * 50)
-        print("STEP 4: Testing LLM")
-        print("=" * 50)
-        
-        # Check HF_TOKEN
-        hf_token = os.getenv("HF_TOKEN")
-        if not hf_token:
-            print("✗ HF_TOKEN environment variable is NOT set!")
-            return None
-        print(f"✓ HF_TOKEN is set (starts with: {hf_token[:10]}...)")
-        print(f"  Using model: {self.model_id}")
-        
-        try:
-            llm_response = self.llm.invoke(prompt_value)
-            print(f"✓ LLM response type: {type(llm_response)}")
-            print(f"✓ LLM response: {llm_response}")
-            return llm_response
-        except Exception as e:
-            print(f"✗ LLM failed: {type(e).__name__}: {e}")
-            print("\nPossible fixes:")
-            print("  1. Check if HF_TOKEN is valid")
-            print("  2. Accept model terms at: https://huggingface.co/meta-llama/Llama-3.2-1B")
-            print("  3. Try a different model (e.g., 'mistralai/Mistral-7B-Instruct-v0.2')")
-            return None
-    
-
-
-    
-
-
-
-
-
