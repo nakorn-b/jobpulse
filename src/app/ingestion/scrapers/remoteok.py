@@ -1,5 +1,6 @@
 import requests
 
+
 class RemoteOKScraper:
     def __init__(self):
         self.url = "https://remoteok.com/api"

@@ -1,5 +1,6 @@
 from .base import AbstractVectorDB
-from .qdrant import QdrantService
 from .chroma import ChromaService
+from .gemma_embedding import GemmaEmbedding
+from .qdrant import QdrantService
 
-__all__ = ["AbstractVectorDB", "QdrantService", "ChromaService"]
+__all__ = ["AbstractVectorDB", "ChromaService", "GemmaEmbedding", "QdrantService"]

@@ -1,5 +1,5 @@
-from typing import Dict, Optional, List
 from app.storage.vector_db.base import AbstractVectorDB
+
 
 class EmbeddingService:
     """
@@ -10,7 +10,7 @@ class EmbeddingService:
         self.vector_db = vector_db
         print("✅ EmbeddingService ready")
     
-    def sync_embeddings(self, batch_size: Optional[int]) -> Dict:
+    def sync_embeddings(self, batch_size: int | None) -> dict:
         jobs = self.sql_db.get_jobs_without_embedding(batch_size)
 
         if not jobs:
@@ -44,7 +44,7 @@ class EmbeddingService:
         stats = self.sql_db.get_stats()
         vector_stats = self.vector_db.get_stats()
 
-        print(f"\n📊 Database Status:")
+        print("\n📊 Database Status:")
         print(f"   SQLite total: {stats['total_jobs']}")
         print(f"   With embeddings: {stats['embedded_jobs']}")
         print(f"   Pending: {stats['pending_embeddings']}")

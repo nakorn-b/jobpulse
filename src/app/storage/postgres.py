@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import psycopg
 from psycopg.rows import dict_row
@@ -11,7 +11,7 @@ JOB_COLUMNS = (
 
 
 class PostgresDatabase:
-    def __init__(self, dsn: Optional[str] = None):
+    def __init__(self, dsn: str | None = None):
         self.dsn = dsn or os.environ['DATABASE_URL']
         # autocommit so each `with self.conn.transaction()` block is its own committed transaction
         self.conn = psycopg.connect(self.dsn, autocommit=True, row_factory=dict_row)
@@ -34,7 +34,7 @@ class PostgresDatabase:
                 )
             ''')
 
-    def insert_new_jobs(self, jobs: List[Dict[str, Any]]) -> List[str]:
+    def insert_new_jobs(self, jobs: list[dict[str, Any]]) -> list[str]:
         """
         Load today's scrape into a temp table, then insert only the rows whose id
         is not already in `jobs` (temp LEFT JOIN jobs WHERE jobs.id IS NULL).
@@ -63,11 +63,11 @@ class PostgresDatabase:
             ''')
             return [row['id'] for row in cursor.fetchall()]
 
-    def get_jobs_without_embedding(self) -> List[Dict[str, Any]]:
+    def get_jobs_without_embedding(self) -> list[dict[str, Any]]:
         cursor = self.conn.execute('SELECT * FROM jobs WHERE has_embedded IS NOT TRUE')
         return cursor.fetchall()
 
-    def mark_as_embedded(self, job_ids: List[str]) -> int:
+    def mark_as_embedded(self, job_ids: list[str]) -> int:
         with self.conn.transaction():
             cursor = self.conn.execute(
                 '''
@@ -80,7 +80,7 @@ class PostgresDatabase:
             )
             return cursor.rowcount
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         cursor = self.conn.execute('''
             SELECT
                 COUNT(*) AS total_jobs,
@@ -90,7 +90,7 @@ class PostgresDatabase:
         ''')
         return cursor.fetchone()
 
-    def get_category_stats(self) -> List[Dict[str, Any]]:
+    def get_category_stats(self) -> list[dict[str, Any]]:
         """Fetch category counts for ECharts visualization."""
         cursor = self.conn.execute('''
             SELECT category AS name, COUNT(*) AS value
